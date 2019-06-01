@@ -9,41 +9,29 @@ var connection = mysql.createConnection({
   database: "bamazon"
 });
 
-connection.connect(function(err) {
-  if (err) throw err;
-  // console.log("connected as id " + connection.threadId + "\n");
-  // createProduct();
-});
-
 function getInventory(selected_item_id){
-  let query = connection.query(
-    'SELECT * FROM `products` WHERE `item_id` = ?',
-    selected_item_id,
-    function (error, results, fields) {
-      if(error) throw error;
-      return results[0].stock_quantity;
-    }
-  );
+  connection.query('SELECT stock_quantity FROM products WHERE item_id = ?', [selected_item_id], function (error, result) {
+    if (error) throw error;
+    console.log(result[0].stock_quantity);
+    connection.end();
+  });
 }
 
-function createProduct() {
-  console.log("Inserting a new product...\n");
+function createProduct(name, dept, price, qty) {
+  // console.log("Inserting a new product...\n");
   var query = connection.query(
     "INSERT INTO products SET ?",
     {
-      flavor: "Rocky Road",
-      price: 3.0,
-      quantity: 50
+      product_name: name,
+      department_name: dept,
+      price: price,
+      stock_quantity: qty
     },
-    function(err, res) {
-      console.log(res.affectedRows + " product inserted!\n");
-      // Call updateProduct AFTER the INSERT completes
-      updateProduct();
+    function(err, result) {
+      console.log(result.affectedRows + " product inserted!\n");
     }
   );
-
-  // logs the actual query being run
-  console.log(query.sql);
+  connection.end();
 }
 
 function sellProduct(item_id, purchaseQty) {
@@ -67,6 +55,9 @@ function sellProduct(item_id, purchaseQty) {
   } else {
     console.log("Insufficient quantity available!");
   }
+  console.log("Selling " + purchaseQty + " of productid: " + item_id);
+  console.log("Current quantity is: " + currentQty);
+  connection.end();
 }
 
 function deleteProduct() {
@@ -82,6 +73,8 @@ function deleteProduct() {
       readProducts();
     }
   );
+
+  connection.end();
 }
 
 function readProducts() {
@@ -99,21 +92,28 @@ function readProducts() {
     });
 }
 
-readProducts();
-
-inquirer.prompt([
-    {
+function promptCustomer() {
+  inquirer
+    .prompt([
+      {
         type: "input",
         name: "product_id",
         message: "Enter product ID# to purchase:"
-    },
-    {
+      },
+      {
         type: "input",
         name: "quantity",
         message: "Enter quantity to purchase:"
-    }
-]).then(function(userInput)
-    {
-      sellProduct(userInput.product_id, userInput.quantity);
-    }
-);
+      }
+    ]).then(function(userInput)
+      {
+        sellProduct(userInput.product_id, userInput.quantity);
+      }
+    ).then(readProducts());
+}
+
+getInventory(2);
+
+// Tests
+// sellProduct(2, 1);
+// promptCustomer();
