@@ -12,9 +12,9 @@ var connection = mysql.createConnection({
 function getInventory(selected_item_id){
   connection.query('SELECT stock_quantity FROM products WHERE item_id = ?', [selected_item_id], function (error, result) {
     if (error) throw error;
-    console.log(result[0].stock_quantity);
-    connection.end();
+    return result[0].stock_quantity;
   });
+  connection.end();
 }
 
 function createProduct(name, dept, price, qty) {
@@ -34,30 +34,29 @@ function createProduct(name, dept, price, qty) {
   connection.end();
 }
 
-function sellProduct(item_id, purchaseQty) {
-  let currentQty = getInventory(item_id);
-  if(currentQty >= purchaseQty){
-    currentQty -= purchaseQty;
-    let query = connection.query(
-      "UPDATE products SET ? WHERE ?",
-      [
-        {
-          stock_quantity: currentQty
-        },
-        {
-          item_id: item_id
-        }
-      ],
-      function(err, res) {
-        console.log("Thank you for your purchase!");
-      }
-    );
-  } else {
-    console.log("Insufficient quantity available!");
-  }
-  console.log("Selling " + purchaseQty + " of productid: " + item_id);
-  console.log("Current quantity is: " + currentQty);
-  connection.end();
+function sellProduct(item_id) {
+  // let currentQty = getInventory(item_id);
+  // if(currentQty >= purchaseQty){
+  //   currentQty -= purchaseQty;
+  //   let query = connection.query(
+  //     "UPDATE products SET ? WHERE ?",
+  //     [
+  //       {
+  //         stock_quantity: currentQty
+  //       },
+  //       {
+  //         item_id: item_id
+  //       }
+  //     ],
+  //     function(err, res) {
+  //       console.log("Thank you for your purchase!");
+  //     }
+  //   );
+  // } else {
+  //   console.log("Insufficient quantity available!");
+  // }
+  console.log(item_id);
+  // console.log("Current quantity is: " + currentQty);
 }
 
 function deleteProduct() {
@@ -78,18 +77,19 @@ function deleteProduct() {
 }
 
 function readProducts() {
-    connection.query("SELECT * FROM products", function(err, products) {
-        if (err) throw err;
-        for(product in products){
-            console.log(products[product].item_id
-                + ": "
-                + products[product].product_name
-                + ", $"
-                + parseFloat(products[product].price).toFixed(2));
-        }
-        console.log("-----------------------------------------------");
-        connection.end();
-    });
+  connection.query("SELECT * FROM products", function(err, products) {
+    if (err) throw err;
+    for(product in products){
+      console.log(products[product].item_id
+        + ": "
+        + products[product].product_name
+        + ", $"
+        + parseFloat(products[product].price).toFixed(2)
+      );
+    }
+    console.log("-----------------------------------------------");
+  });
+  connection.end();
 }
 
 function promptCustomer() {
@@ -109,11 +109,42 @@ function promptCustomer() {
       {
         sellProduct(userInput.product_id, userInput.quantity);
       }
-    ).then(readProducts());
+  );
 }
-
-getInventory(2);
 
 // Tests
 // sellProduct(2, 1);
-// promptCustomer();
+function readProducts2() {
+  connection.query("SELECT * FROM products", function(err, products) {
+    if (err) throw err;
+    for(product in products){
+      console.log(products[product].item_id
+        + ": "
+        + products[product].product_name
+        + ", $"
+        + parseFloat(products[product].price).toFixed(2)
+      );
+    }
+    console.log("-----------------------------------------------");
+  });
+  connection.end();
+  promptCustomer();
+}
+
+var resolveAfter1Second = function() {
+  return new Promise(resolve => {
+    setTimeout(function() {
+      resolve("fast");
+    }, 1000);
+  });
+};
+
+// Function used to execute asynchronous operations in sequence
+// ref: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
+var sequentialStart = async function() {
+  readProducts();
+  const fast = await resolveAfter1Second();
+  promptCustomer();
+}
+
+sequentialStart();
