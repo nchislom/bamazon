@@ -9,7 +9,18 @@ var connection = mysql.createConnection({
   database: "bamazon"
 });
 
-function getInventory(selected_item_id){
+// Function used to execute asynchronous operations in sequence
+// ref: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
+var resolveAfter1Second = function() {
+  return new Promise(resolve => {
+    setTimeout(function() {
+      resolve("fast");
+    }, 1000);
+  });
+};
+
+// Used to return current inventory of selected_item_id
+async function getInventory(selected_item_id){
   connection.query('SELECT stock_quantity FROM products WHERE item_id = ?', [selected_item_id], function (error, result) {
     if (error) throw error;
     return result[0].stock_quantity;
@@ -17,65 +28,42 @@ function getInventory(selected_item_id){
   connection.end();
 }
 
-function createProduct(name, dept, price, qty) {
-  // console.log("Inserting a new product...\n");
-  var query = connection.query(
-    "INSERT INTO products SET ?",
-    {
-      product_name: name,
-      department_name: dept,
-      price: price,
-      stock_quantity: qty
-    },
-    function(err, result) {
-      console.log(result.affectedRows + " product inserted!\n");
-    }
-  );
+// Used to return cost of selected_item_id
+async function getCost(selected_item_id) {
+  connection.query('SELECT price FROM products WHERE item_id = ?', [selected_item_id], function (error, result) {
+    if (error) throw error;
+    return result[0].price;
+  });
   connection.end();
 }
 
-function sellProduct(item_id) {
-  // let currentQty = getInventory(item_id);
-  // if(currentQty >= purchaseQty){
-  //   currentQty -= purchaseQty;
-  //   let query = connection.query(
-  //     "UPDATE products SET ? WHERE ?",
-  //     [
-  //       {
-  //         stock_quantity: currentQty
-  //       },
-  //       {
-  //         item_id: item_id
-  //       }
-  //     ],
-  //     function(err, res) {
-  //       console.log("Thank you for your purchase!");
-  //     }
-  //   );
-  // } else {
-  //   console.log("Insufficient quantity available!");
-  // }
-  console.log(item_id);
-  // console.log("Current quantity is: " + currentQty);
+function sellProduct(item_id, qty) {
+  let currentQty = getInventory(item_id);
+  let itemCost = getCost(item_id);
+  let orderTotal = parseFloat(itemCost * qty).toFixed(2);
+  if(currentQty >= purchaseQty){
+    currentQty -= purchaseQty;
+    let query = connection.query(
+      "UPDATE products SET ? WHERE ?",
+      [
+        {
+          stock_quantity: currentQty
+        },
+        {
+          item_id: item_id
+        }
+      ],
+      function(err, res) {
+        console.log("Thank you for your purchase!");
+        console.log("Order Total: " + orderTotal);
+      }
+    );
+  } else {
+    console.log("Insufficient quantity available!");
+  }
 }
 
-function deleteProduct() {
-  console.log("Deleting all strawberry icecream...\n");
-  connection.query(
-    "DELETE FROM products WHERE ?",
-    {
-      flavor: "strawberry"
-    },
-    function(err, res) {
-      console.log(res.affectedRows + " products deleted!\n");
-      // Call readProducts AFTER the DELETE completes
-      readProducts();
-    }
-  );
-
-  connection.end();
-}
-
+// Used to return products
 function readProducts() {
   connection.query("SELECT * FROM products", function(err, products) {
     if (err) throw err;
@@ -92,6 +80,7 @@ function readProducts() {
   connection.end();
 }
 
+// Inquirer prompt for user input
 function promptCustomer() {
   inquirer
     .prompt([
@@ -112,39 +101,11 @@ function promptCustomer() {
   );
 }
 
-// Tests
-// sellProduct(2, 1);
-function readProducts2() {
-  connection.query("SELECT * FROM products", function(err, products) {
-    if (err) throw err;
-    for(product in products){
-      console.log(products[product].item_id
-        + ": "
-        + products[product].product_name
-        + ", $"
-        + parseFloat(products[product].price).toFixed(2)
-      );
-    }
-    console.log("-----------------------------------------------");
-  });
-  connection.end();
-  promptCustomer();
-}
-
-var resolveAfter1Second = function() {
-  return new Promise(resolve => {
-    setTimeout(function() {
-      resolve("fast");
-    }, 1000);
-  });
-};
-
-// Function used to execute asynchronous operations in sequence
-// ref: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
-var sequentialStart = async function() {
+// asynchronous flow, trying to prevent prompts/outputs from firing before sql query completes...
+var getCustomerInput = async function() {
   readProducts();
-  const fast = await resolveAfter1Second();
+  await resolveAfter1Second();
   promptCustomer();
 }
 
-sequentialStart();
+getCustomerInput();
